@@ -812,7 +812,7 @@ public class KeyboardView extends View implements View.OnClickListener {
                 Arrays.fill(codes, NOT_A_KEY);
                 getKeyIndices(x, y, codes);
                 mKeyboardActionListener.onEvent(key.getEvent());
-                mKeyboardActionListener.onRelease(code);
+                //mKeyboardActionListener.onRelease(code);
                 resetShifted();
             }
             mLastSentIndex = index;
@@ -1108,15 +1108,40 @@ public class KeyboardView extends View implements View.OnClickListener {
     }
     */
 
+    private void releaseKey(MotionEvent me) {
+      final int action = me.getActionMasked();
+      int touchX;
+      int touchY;
+      switch (action) {
+      case MotionEvent.ACTION_DOWN:
+      case MotionEvent.ACTION_UP:
+        touchX = (int)me.getX()- getPaddingLeft();
+        touchY = (int)me.getY()- getPaddingTop();
+        break;
+      case MotionEvent.ACTION_POINTER_DOWN:
+      case MotionEvent.ACTION_POINTER_UP:
+        int i = me.getActionIndex();
+        touchX = (int)me.getX(i)- getPaddingLeft();
+        touchY = (int)me.getY(i)- getPaddingTop();
+        break;
+      default:
+        return;
+      }
+      int keyIndex = getKeyIndices(touchX, touchY, null);
+      if (keyIndex >= 0) {
+        final Key key = mKeys[keyIndex];
+        mKeyboardActionListener.onRelease(key.getCode());
+      }
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent me) {
         // Convert multi-pointer up/down events to single up/down events to 
         // deal with the typical multi-pointer behavior of two-thumb typing
         final int pointerCount = me.getPointerCount();
-        final int action = me.getAction();
+        final int action = me.getActionMasked();
         boolean result = false;
         final long now = me.getEventTime();
-
         if (pointerCount != mOldPointerCount) {
             if (pointerCount == 1) {
                 // Send a down event for the latest pointer
@@ -1145,6 +1170,7 @@ public class KeyboardView extends View implements View.OnClickListener {
                 result = true;
             }
         }
+        releaseKey(me);
         mOldPointerCount = pointerCount;
 
         return result;
@@ -1159,7 +1185,6 @@ public class KeyboardView extends View implements View.OnClickListener {
         final long eventTime = me.getEventTime();
         int keyIndex = getKeyIndices(touchX, touchY, null);
         mPossiblePoly = possiblePoly;
-
         // Track the last few movements to look for spurious swipes.
         if (action == MotionEvent.ACTION_DOWN) mSwipeTracker.clear();
         mSwipeTracker.addMovement(me);
